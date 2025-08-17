@@ -12,16 +12,17 @@
 char* readline();
 char* ltrim(char*);
 char* rtrim(char*);
+char** split_string(char*);
 
 int parse_int(char*);
 
 /*
- * Complete the 'matchingStrings' function below.
+ * Complete the 'dynamicArray' function below.
  *
  * The function is expected to return an INTEGER_ARRAY.
  * The function accepts following parameters:
- *  1. STRING_ARRAY strings
- *  2. STRING_ARRAY queries
+ *  1. INTEGER n
+ *  2. 2D_INTEGER_ARRAY queries
  */
 
 /*
@@ -51,25 +52,46 @@ int parse_int(char*);
  * }
  *
  */
+int* dynamicArray(int n, int queries_rows, int queries_columns, int** queries, int* result_count) {
+    // Initialize n empty sequences
+    int** seq = malloc(n * sizeof(int*));
+    int* sizes = calloc(n, sizeof(int));       // track sizes of each sequence
+    int* capacity = calloc(n, sizeof(int));    // track capacity of each sequence
 
-int* matchingStrings(int strings_count, char** strings, int queries_count, char** queries, int* result_count) {
-    // Set the result_count to queries_count
-    *result_count = queries_count;
-
-    // Allocate memory for the result array
-    int* results = malloc(queries_count * sizeof(int));
-
-    // For each query, count the number of occurrences in strings
-    for (int i = 0; i < queries_count; i++) {
-        int count = 0;
-        for (int j = 0; j < strings_count; j++) {
-            if (strcmp(queries[i], strings[j]) == 0) {
-                count++;
-            }
-        }
-        results[i] = count;
+    for (int i = 0; i < n; i++) {
+        seq[i] = NULL;
+        sizes[i] = 0;
+        capacity[i] = 0;
     }
 
+    int lastAnswer = 0;
+    int* results = malloc(queries_rows * sizeof(int)); // max possible results
+    int resCount = 0;
+
+    for (int i = 0; i < queries_rows; i++) {
+        int type = queries[i][0];
+        int x = queries[i][1];
+        int y = queries[i][2];
+
+        int idx = (x ^ lastAnswer) % n;
+
+        if (type == 1) {
+            // Append y to seq[idx]
+            if (sizes[idx] == capacity[idx]) {
+                capacity[idx] = (capacity[idx] == 0) ? 2 : capacity[idx] * 2;
+                seq[idx] = realloc(seq[idx], capacity[idx] * sizeof(int));
+            }
+            seq[idx][sizes[idx]++] = y;
+
+        } else if (type == 2) {
+            // Fetch element and update lastAnswer
+            int pos = y % sizes[idx];
+            lastAnswer = seq[idx][pos];
+            results[resCount++] = lastAnswer;
+        }
+    }
+
+    *result_count = resCount;
     return results;
 }
 
@@ -78,33 +100,33 @@ int main()
 {
     FILE* fptr = fopen(getenv("OUTPUT_PATH"), "w");
 
-    int strings_count = parse_int(ltrim(rtrim(readline())));
+    char** first_multiple_input = split_string(rtrim(readline()));
 
-    char** strings = malloc(strings_count * sizeof(char*));
+    int n = parse_int(*(first_multiple_input + 0));
 
-    for (int i = 0; i < strings_count; i++) {
-        char* strings_item = readline();
+    int q = parse_int(*(first_multiple_input + 1));
 
-        *(strings + i) = strings_item;
+    int** queries = malloc(q * sizeof(int*));
+
+    for (int i = 0; i < q; i++) {
+        *(queries + i) = malloc(3 * (sizeof(int)));
+
+        char** queries_item_temp = split_string(rtrim(readline()));
+
+        for (int j = 0; j < 3; j++) {
+            int queries_item = parse_int(*(queries_item_temp + j));
+
+            *(*(queries + i) + j) = queries_item;
+        }
     }
 
-    int queries_count = parse_int(ltrim(rtrim(readline())));
+    int result_count;
+    int* result = dynamicArray(n, q, 3, queries, &result_count);
 
-    char** queries = malloc(queries_count * sizeof(char*));
+    for (int i = 0; i < result_count; i++) {
+        fprintf(fptr, "%d", *(result + i));
 
-    for (int i = 0; i < queries_count; i++) {
-        char* queries_item = readline();
-
-        *(queries + i) = queries_item;
-    }
-
-    int res_count;
-    int* res = matchingStrings(strings_count, strings, queries_count, queries, &res_count);
-
-    for (int i = 0; i < res_count; i++) {
-        fprintf(fptr, "%d", *(res + i));
-
-        if (i != res_count - 1) {
+        if (i != result_count - 1) {
             fprintf(fptr, "\n");
         }
     }
@@ -202,6 +224,27 @@ char* rtrim(char* str) {
     *(end + 1) = '\0';
 
     return str;
+}
+
+char** split_string(char* str) {
+    char** splits = NULL;
+    char* token = strtok(str, " ");
+
+    int spaces = 0;
+
+    while (token) {
+        splits = realloc(splits, sizeof(char*) * ++spaces);
+
+        if (!splits) {
+            return splits;
+        }
+
+        splits[spaces - 1] = token;
+
+        token = strtok(NULL, " ");
+    }
+
+    return splits;
 }
 
 int parse_int(char* str) {
